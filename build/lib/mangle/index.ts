@@ -758,14 +758,21 @@ async function _run() {
 		mangleExports: true,
 		manglePrivateFields: true,
 	});
+	const emitsPromises = [];
 	for (const [fileName, contents] of await mangler.computeNewFileContents(new Set(['saveState']))) {
 		const newFilePath = path.join(newProjectBase, path.relative(projectBase, fileName));
-		await fs.promises.mkdir(path.dirname(newFilePath), { recursive: true });
-		await fs.promises.writeFile(newFilePath, contents.out);
-		if (contents.sourceMap) {
-			await fs.promises.writeFile(newFilePath + '.map', contents.sourceMap);
-		}
+		const promise = fs.promises.mkdir(path.dirname(newFilePath), { recursive: true })
+                    .then(() => {
+			const sourcePromise = fs.promises.writeFile(newFilePath, contents.out);
+			if (contents.sourceMap) {
+                            const sourceMapPromise = fs.promises.writeFile(newFilePath + '.map', contents.sourceMap);
+			    return Promise.all[sourcePromise, sourceMapPromise];
+		        }
+			return sourcePromise;
+                    });
+		emitsPromises.push(promise)
 	}
+	await Promise.all(emitsPromises);
 }
 
 if (__filename === argv[1]) {
